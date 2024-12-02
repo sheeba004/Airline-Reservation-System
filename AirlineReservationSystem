@@ -1,0 +1,181 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class AirlineReservationSystem {
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new ReservationSystem().createGUI());
+    }
+}
+
+// Flight class to store flight details
+class Flight {
+    String flightNumber;
+    String route;
+    String departureTime;
+    int availableSeats;
+
+    public Flight(String flightNumber, String route, String departureTime, int availableSeats) {
+        this.flightNumber = flightNumber;
+        this.route = route;
+        this.departureTime = departureTime;
+        this.availableSeats = availableSeats;
+    }
+
+    @Override
+    public String toString() {
+        return flightNumber + " | " + route + " | Departure: " + departureTime + " | Seats: " + availableSeats;
+    }
+}
+
+// Main system class
+class ReservationSystem {
+    private JFrame frame;
+    private JTextField searchField;
+    private DefaultListModel<String> flightListModel;
+    private JList<String> flightList;
+    private JTextArea reservationArea;
+    private List<Flight> flights;
+    private List<Flight> reservations;
+
+    // Create mock flights
+    public ReservationSystem() {
+        flights = new ArrayList<>();
+        reservations = new ArrayList<>();
+        flights.add(new Flight("FL101", "NYC to LA", "10:30 AM", 20));
+        flights.add(new Flight("FL102", "LA to SF", "2:15 PM", 15));
+        flights.add(new Flight("FL103", "NYC to Chicago", "9:45 AM", 25));
+        flights.add(new Flight("FL104", "Chicago to Miami", "4:00 PM", 10));
+        flights.add(new Flight("FL105", "Miami to NYC", "6:30 PM", 5));
+    }
+
+    // Method to create the GUI
+    public void createGUI() {
+        frame = new JFrame("Airline Reservation System");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(800, 600);
+
+        // Main panel
+        JPanel mainPanel = new JPanel(new BorderLayout());
+
+        // Search panel
+        JPanel searchPanel = new JPanel(new BorderLayout());
+        searchPanel.setBorder(BorderFactory.createTitledBorder("Search Flights"));
+        searchField = new JTextField();
+        JButton searchButton = new JButton("Search");
+        searchButton.addActionListener(this::searchFlights);
+        searchPanel.add(searchField, BorderLayout.CENTER);
+        searchPanel.add(searchButton, BorderLayout.EAST);
+
+        // Flight list panel
+        JPanel flightPanel = new JPanel(new BorderLayout());
+        flightPanel.setBorder(BorderFactory.createTitledBorder("Available Flights"));
+        flightListModel = new DefaultListModel<>();
+        flightList = new JList<>(flightListModel);
+        JScrollPane flightScrollPane = new JScrollPane(flightList);
+        JButton bookButton = new JButton("Book Selected Flight");
+        bookButton.addActionListener(this::bookFlight);
+        flightPanel.add(flightScrollPane, BorderLayout.CENTER);
+        flightPanel.add(bookButton, BorderLayout.SOUTH);
+
+        // Reservation panel
+        JPanel reservationPanel = new JPanel(new BorderLayout());
+        reservationPanel.setBorder(BorderFactory.createTitledBorder("Your Reservations"));
+        reservationArea = new JTextArea();
+        reservationArea.setEditable(false);
+        JScrollPane reservationScrollPane = new JScrollPane(reservationArea);
+        JButton cancelButton = new JButton("Cancel Selected Reservation");
+        cancelButton.addActionListener(this::cancelReservation);
+        reservationPanel.add(reservationScrollPane, BorderLayout.CENTER);
+        reservationPanel.add(cancelButton, BorderLayout.SOUTH);
+
+        // Layout setup
+        mainPanel.add(searchPanel, BorderLayout.NORTH);
+        mainPanel.add(flightPanel, BorderLayout.CENTER);
+        mainPanel.add(reservationPanel, BorderLayout.EAST);
+        frame.add(mainPanel);
+
+        frame.setVisible(true);
+        refreshFlightList(); // Show all flights initially
+    }
+
+    // Refresh the flight list
+    private void refreshFlightList() {
+        flightListModel.clear();
+        for (Flight flight : flights) {
+            flightListModel.addElement(flight.toString());
+        }
+    }
+
+    // Search flights based on user input
+    private void searchFlights(ActionEvent e) {
+        String query = searchField.getText().trim().toLowerCase();
+        flightListModel.clear();
+
+        for (Flight flight : flights) {
+            if (flight.route.toLowerCase().contains(query)) {
+                flightListModel.addElement(flight.toString());
+            }
+        }
+
+        if (flightListModel.isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "No flights found matching your search.");
+        }
+    }
+
+    // Book a flight
+    private void bookFlight(ActionEvent e) {
+        int selectedIndex = flightList.getSelectedIndex();
+        if (selectedIndex == -1) {
+            JOptionPane.showMessageDialog(frame, "Please select a flight to book.");
+            return;
+        }
+
+        Flight selectedFlight = flights.get(selectedIndex);
+
+        if (selectedFlight.availableSeats > 0) {
+            selectedFlight.availableSeats--;
+            reservations.add(selectedFlight);
+            reservationArea.append(selectedFlight.flightNumber + " | " + selectedFlight.route + "\n");
+            JOptionPane.showMessageDialog(frame, "Flight booked successfully!");
+            refreshFlightList();
+        } else {
+            JOptionPane.showMessageDialog(frame, "No seats available for this flight.");
+        }
+    }
+
+    // Cancel a reservation
+    private void cancelReservation(ActionEvent e) {
+        String[] reservationLines = reservationArea.getText().split("\n");
+        if (reservationLines.length == 0) {
+            JOptionPane.showMessageDialog(frame, "No reservations to cancel.");
+            return;
+        }
+
+        String flightToCancel = (String) JOptionPane.showInputDialog(
+            frame,
+            "Select a reservation to cancel:",
+            "Cancel Reservation",
+            JOptionPane.PLAIN_MESSAGE,
+            null,
+            reservationLines,
+            reservationLines[0]
+        );
+
+        if (flightToCancel != null) {
+            reservationArea.setText(""); // Clear and rebuild the reservation list
+            reservations.removeIf(f -> (f.flightNumber + " | " + f.route).equals(flightToCancel));
+            for (Flight reservation : reservations) {
+                reservationArea.append(reservation.flightNumber + " | " + reservation.route + "\n");
+            }
+
+            flights.stream()
+                .filter(f -> (f.flightNumber + " | " + f.route).equals(flightToCancel))
+                .forEach(f -> f.availableSeats++);
+            JOptionPane.showMessageDialog(frame, "Reservation canceled successfully.");
+            refreshFlightList();
+        }
+    }
+}
